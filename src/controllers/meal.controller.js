@@ -1,6 +1,8 @@
 const { Meal, mealStatus } = require('../models/meal.model');
 const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
 const catchAsync = require('../utils/catchAsync');
+const storage = require('../utils/firebase');
+const { ref, getDownloadURL } = require('firebase/storage');
 
 exports.createMeal = catchAsync(async (req, res, next) => {
   const { id: restaurantId } = req.restaurant;
@@ -31,6 +33,16 @@ exports.findAllMeals = catchAsync(async (req, res, next) => {
     ],
   });
 
+  const mealsPromises = meals.map(async (meal) => {
+    const imgRef = ref(storage, meal.restaurant.restaurantImg);
+    const url = await getDownloadURL(imgRef);
+
+    meal.restaurant.restaurantImg = url;
+    return meal;
+  });
+
+  await Promise.all(mealsPromises);
+
   return res.status(200).json({
     status: 'success',
     results: meals.length,
@@ -40,6 +52,11 @@ exports.findAllMeals = catchAsync(async (req, res, next) => {
 
 exports.findOneMeal = catchAsync(async (req, res, next) => {
   const { meal } = req;
+
+  const imgRef = ref(storage, meal.restaurant.restaurantImg);
+  const url = await getDownloadURL(imgRef);
+
+  meal.restaurant.restaurantImg = url;
 
   return res.status(200).json({
     status: 'success',

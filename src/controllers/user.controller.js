@@ -13,6 +13,8 @@ exports.signupUser = catchAsync(async (req, res, next) => {
   const salt = await bcrypt.genSalt(12);
   const encryptedPassword = await bcrypt.hash(password, salt);
 
+  console.log(encryptedPassword);
+
   const user = await User.create({
     name: name.toLowerCase().trim(),
     email: email.toLowerCase().trim(),

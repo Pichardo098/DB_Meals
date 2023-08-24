@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const upload = require('../utils/multer');
 
 //Controllers
 const restaurantController = require('../controllers/restaurant.controller');
@@ -45,6 +46,7 @@ router.use(authMiddleware.allowTo('admin'));
 
 router.post(
   '/',
+  upload.single('restaurantImg'),
   validationMiddleware.createRestaurant,
   restaurantController.createRestaurant
 );

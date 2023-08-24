@@ -1,15 +1,33 @@
 const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
 const { Review, reviewStatus } = require('../models/review.model');
-const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
+const storage = require('../utils/firebase');
+const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 
 exports.createRestaurant = catchAsync(async (req, res, next) => {
   const { name, address } = req.body;
 
+  let restaurantImg;
+
+  if (req.file?.buffer) {
+    const imgRef = ref(
+      storage,
+      `restaurants/${Date.now()}-${req.file?.originalname}`
+    );
+    const imgUpload = await uploadBytes(imgRef, req.file?.buffer);
+    restaurantImg = imgUpload.metadata.fullPath;
+  }
+
   const restaurant = await Restaurant.create({
     name,
     address,
+    restaurantImg,
   });
+
+  const imgRefRestaurant = ref(storage, restaurant.restaurantImg);
+  const url = await getDownloadURL(imgRefRestaurant);
+
+  restaurant.restaurantImg = url;
 
   return res.status(200).json({
     status: 'success',
@@ -33,6 +51,16 @@ exports.findAllRestaurants = catchAsync(async (req, res, next) => {
     ],
   });
 
+  const imgRestPromise = restaurants.map(async (restaurant) => {
+    const imgRef = ref(storage, restaurant.restaurantImg);
+    const url = await getDownloadURL(imgRef);
+
+    restaurant.restaurantImg = url;
+    return restaurant;
+  });
+
+  await Promise.all(imgRestPromise);
+
   return res.status(200).json({
     status: 'success',
     results: restaurants.length,
@@ -42,6 +70,11 @@ exports.findAllRestaurants = catchAsync(async (req, res, next) => {
 
 exports.findOneRestaurant = catchAsync(async (req, res, next) => {
   const { restaurant } = req;
+
+  const imgRefRestaurant = ref(storage, restaurant.restaurantImg);
+  const url = await getDownloadURL(imgRefRestaurant);
+
+  restaurant.restaurantImg = url;
 
   return res.status(200).json({
     status: 'success',

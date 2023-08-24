@@ -22,8 +22,13 @@ const Restaurant = db.define('restaurants', {
     allowNull: false,
     defaultValue: 0,
   },
+  restaurantImg: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: process.env.FIREBASE_IMG_DEFAULT_REST,
+  },
   status: {
-    type: DataTypes.ENUM('active', 'disable'),
+    type: DataTypes.ENUM('active', 'disabled'),
     defaultValue: 'active',
     allowNull: false,
   },
@@ -31,7 +36,7 @@ const Restaurant = db.define('restaurants', {
 
 const restaurantStatus = Object.freeze({
   active: 'active',
-  inactive: 'disable',
+  inactive: 'disabled',
 });
 
 module.exports = {
