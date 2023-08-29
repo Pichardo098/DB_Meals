@@ -2,7 +2,8 @@ const { Meal, mealStatus } = require('../models/meal.model');
 const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
 const catchAsync = require('../utils/catchAsync');
 const storage = require('../utils/firebase');
-const { ref, getDownloadURL } = require('firebase/storage');
+const { ref, getDownloadURL, uploadBytes } = require('firebase/storage');
+const { MealImg, statusMealImg } = require('../models/mealImg.model');
 
 exports.createMeal = catchAsync(async (req, res, next) => {
   const { id: restaurantId } = req.restaurant;
@@ -13,6 +14,23 @@ exports.createMeal = catchAsync(async (req, res, next) => {
     price,
     restaurantId,
   });
+
+  if (req.files.length > 0) {
+    const mealImgsPromises = req.files.map(async (file) => {
+      const imgRef = ref(
+        storage,
+        `mealImgs/${Date.now()}-${file.originalname}`
+      );
+      const upload = await uploadBytes(imgRef, file.buffer);
+
+      return await MealImg.create({
+        mealId: meal.id,
+        mealImgUrl: upload.metadata.fullPath,
+      });
+    });
+
+    await Promise.all(mealImgsPromises);
+  }
 
   return res.status(200).json({
     status: 'success',
@@ -30,12 +48,29 @@ exports.findAllMeals = catchAsync(async (req, res, next) => {
       {
         model: Restaurant,
       },
+      {
+        model: MealImg,
+      },
     ],
   });
 
   const mealsPromises = meals.map(async (meal) => {
     const imgRef = ref(storage, meal.restaurant.restaurantImg);
-    const url = await getDownloadURL(imgRef);
+    const urlPromise = getDownloadURL(imgRef);
+
+    const mealImgsPromises = meal.mealImgs.map(async (mealImg) => {
+      const imgRef = ref(storage, mealImg.mealImgUrl);
+      const url = await getDownloadURL(imgRef);
+
+      mealImg.mealImgUrl = url;
+
+      return mealImg;
+    });
+
+    const [resolveImgs, url] = await Promise.all([
+      ...mealImgsPromises,
+      urlPromise,
+    ]);
 
     meal.restaurant.restaurantImg = url;
     return meal;
@@ -52,6 +87,21 @@ exports.findAllMeals = catchAsync(async (req, res, next) => {
 
 exports.findOneMeal = catchAsync(async (req, res, next) => {
   const { meal } = req;
+
+  let mealImgsPromises = [];
+
+  if (meal.mealImgs.length > 0) {
+    mealImgsPromises = meal.mealImgs.map(async (mealImg) => {
+      const imgRef = ref(storage, mealImg.mealImgUrl);
+      const url = await getDownloadURL(imgRef);
+
+      mealImg.mealImgUrl = url;
+
+      return mealImg;
+    });
+
+    await Promise.all(mealImgsPromises);
+  }
 
   const imgRef = ref(storage, meal.restaurant.restaurantImg);
   const url = await getDownloadURL(imgRef);

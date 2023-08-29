@@ -52,12 +52,16 @@ router.post(
 );
 
 router
-  .use('/:id', restaurantMiddleware.validRestaurant)
   .route('/:id')
   .patch(
+    upload.single('restaurantImg'),
+    restaurantMiddleware.validRestaurant,
     validationMiddleware.updateRestaurant,
     restaurantController.updateRestaurant
   )
-  .delete(restaurantController.deleteRestaurant);
+  .delete(
+    restaurantMiddleware.validRestaurant,
+    restaurantController.deleteRestaurant
+  );
 
 module.exports = router;

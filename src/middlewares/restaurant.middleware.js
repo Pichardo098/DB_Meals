@@ -32,6 +32,17 @@ exports.validRestaurantAndReview = catchAsync(async (req, res, next) => {
   const { restaurantId, id } = req.params;
   const { id: userId } = req.sessionUser;
 
+  const restaurant = await Restaurant.findOne({
+    where: {
+      id: restaurantId,
+      status: restaurantStatus.active,
+    },
+  });
+
+  if (!restaurant) {
+    return next(new AppError(`Restaurant with id: ${id} not found`, 400));
+  }
+
   const review = await Review.findOne({
     where: {
       id,

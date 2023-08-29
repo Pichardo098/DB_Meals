@@ -18,6 +18,11 @@ const User = db.define('users', {
     allowNull: false,
     unique: true,
   },
+  userProfileImg: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: process.env.FIREBASE_IMG_DEFAULT_USER,
+  },
   password: {
     type: DataTypes.STRING,
     allowNull: false,

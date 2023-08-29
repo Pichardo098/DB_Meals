@@ -49,21 +49,21 @@ exports.loginUserValidation = [
 
 exports.updateUserValidation = [
   body('name').notEmpty().withMessage('Name is required'),
-  body('email')
-    .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Email must be a correct format')
-    .custom(async (value) => {
-      const email = await User.findOne({
-        where: {
-          email: value.toLowerCase().trim(),
-        },
-      });
-      if (email) {
-        throw new Error(`Email ${value} already exists`);
-      }
-    }),
+  // body('email')
+  //   .notEmpty()
+  //   .withMessage('Email is required')
+  //   .isEmail()
+  //   .withMessage('Email must be a correct format')
+  //   .custom(async (value) => {
+  //     const email = await User.findOne({
+  //       where: {
+  //         email: value.toLowerCase().trim(),
+  //       },
+  //     });
+  //     if (email) {
+  //       throw new Error(`Email ${value} already exists`);
+  //     }
+  //   }),
   body('newPassword')
     .notEmpty()
     .withMessage('Password is required')

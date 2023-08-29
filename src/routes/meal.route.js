@@ -8,6 +8,7 @@ const mealMiddleware = require('../middlewares/meal.middleware');
 const authMiddleware = require('../middlewares/auth.middleware');
 const restaurantMiddleware = require('../middlewares/restaurant.middleware');
 const validationMiddleware = require('../middlewares/validations.middleware');
+const upload = require('../utils/multer');
 //Routes
 router.get('/', mealController.findAllMeals);
 router.get('/:id', mealMiddleware.validMeal, mealController.findOneMeal);
@@ -16,6 +17,7 @@ router.use(authMiddleware.protect, authMiddleware.allowTo('admin'));
 
 router.post(
   '/:id',
+  upload.array('mealImgs', 3),
   validationMiddleware.createMeal,
   restaurantMiddleware.validRestaurant,
   mealController.createMeal

@@ -1,28 +1,43 @@
 const { User, userStatus } = require('../models/user.model');
 const { Order, orderStatus } = require('../models/order.model');
 const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
-const { Meal, mealtStatus } = require('../models/meal.model');
+const { Meal, mealStatus } = require('../models/meal.model');
 const catchAsync = require('../utils/catchAsync');
 const bcrypt = require('bcryptjs');
 const generateJWT = require('../utils/jwt');
 const AppError = require('../utils/appError');
+const storage = require('../utils/firebase');
+const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
 
 exports.signupUser = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
 
+  let userProfileImg;
+
+  if (req.file) {
+    const imgRef = ref(storage, `users/${Date.now()}-${req.file.originalname}`);
+    const imgUpload = await uploadBytes(imgRef, req.file.buffer);
+
+    userProfileImg = imgUpload.metadata.fullPath;
+  }
+
   const salt = await bcrypt.genSalt(12);
   const encryptedPassword = await bcrypt.hash(password, salt);
-
-  console.log(encryptedPassword);
 
   const user = await User.create({
     name: name.toLowerCase().trim(),
     email: email.toLowerCase().trim(),
     password: encryptedPassword,
     role,
+    userProfileImg,
   });
 
-  const token = await generateJWT(user.id);
+  const imgRef = ref(storage, user.userProfileImg);
+  const urlPromise = getDownloadURL(imgRef);
+
+  const tokenPromise = generateJWT(user.id);
+
+  const [url, token] = await Promise.all([urlPromise, tokenPromise]);
 
   const roleUser = user.role ?? 'This user has not role';
 
@@ -35,6 +50,7 @@ exports.signupUser = catchAsync(async (req, res, next) => {
       name: user.name,
       email: user.email,
       role: roleUser,
+      userProfileImg: url,
     },
   });
 });
@@ -56,7 +72,12 @@ exports.loginUser = catchAsync(async (req, res, next) => {
     return next(new AppError('Email or password is wrong', 401));
   }
 
-  const token = await generateJWT(user.id);
+  const imgRef = ref(storage, user.userProfileImg);
+  const urlPromise = getDownloadURL(imgRef);
+
+  const tokenPromise = generateJWT(user.id);
+
+  const [url, token] = await Promise.all([urlPromise, tokenPromise]);
 
   const roleUser = user.role ?? 'This user has not role';
 
@@ -68,12 +89,22 @@ exports.loginUser = catchAsync(async (req, res, next) => {
       name: user.name,
       email: user.email,
       role: roleUser,
+      userProfileImg: url,
     },
   });
 });
 exports.updateUser = catchAsync(async (req, res, next) => {
   const { user } = req;
-  const { name, email, newPassword, currentPassword } = req.body;
+  const { name, newPassword, currentPassword } = req.body;
+
+  let userProfileImg;
+
+  if (req.file) {
+    const imgRef = ref(storage, `users/${Date.now()}-${req.file.originalname}`);
+    const upload = await uploadBytes(imgRef, req.file.buffer);
+
+    userProfileImg = upload.metadata.fullPath;
+  }
 
   if (newPassword === currentPassword) {
     return next(new AppError('The new password cannot be equals', 400));
@@ -88,8 +119,8 @@ exports.updateUser = catchAsync(async (req, res, next) => {
 
   await user.update({
     name: name.toLowerCase().trim(),
-    email: email.toLowerCase().trim(),
     password: encryptedPassword,
+    userProfileImg,
   });
 
   return res.status(200).json({
@@ -107,6 +138,7 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
     message: `User with id: ${user.id} has been deleted`,
   });
 });
+//TODO: Resolve url of the MEALS
 exports.getAllOrdersUser = catchAsync(async (req, res, next) => {
   const { sessionUser } = req;
 

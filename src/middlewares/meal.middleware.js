@@ -1,5 +1,6 @@
 const { Meal, mealStatus } = require('../models/meal.model');
 const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
+const { MealImg, statusMealImg } = require('../models/mealImg.model');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 
@@ -11,9 +12,15 @@ exports.validMeal = catchAsync(async (req, res, next) => {
       id,
       status: mealStatus.active,
     },
-    include: {
-      model: Restaurant,
-    },
+    include: [
+      {
+        model: Restaurant,
+      },
+      {
+        model: MealImg,
+        attributes: ['id', 'mealImgUrl'],
+      },
+    ],
   });
 
   if (!meal) {

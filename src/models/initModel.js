@@ -3,6 +3,7 @@ const { Restaurant } = require('./restaurant.model');
 const { Review } = require('./review.model');
 const { Meal } = require('./meal.model');
 const { Order } = require('./order.model');
+const { MealImg } = require('../models/mealImg.model');
 
 const initModel = () => {
   Restaurant.hasMany(Meal, { foreignKey: 'restaurantId' });
@@ -13,6 +14,9 @@ const initModel = () => {
 
   Meal.hasOne(Order, { foreignKey: 'mealId' });
   Order.belongsTo(Meal, { foreignKey: 'mealId' });
+
+  Meal.hasMany(MealImg, { foreignKey: 'mealId' });
+  MealImg.belongsTo(Meal, { foreignKey: 'mealId' });
 
   User.hasMany(Review, { foreignKey: 'userId' });
   Review.belongsTo(User, { foreignKey: 'userId' });

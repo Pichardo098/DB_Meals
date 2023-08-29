@@ -87,7 +87,19 @@ exports.updateRestaurant = catchAsync(async (req, res, next) => {
   const { restaurant } = req;
   const { name, address } = req.body;
 
-  await restaurant.update({ name, address });
+  let restaurantImg;
+
+  if (req.file) {
+    const imgRef = ref(
+      storage,
+      `restaurants/${Date.now()}-${req.file.originalname}`
+    );
+    const imgUpload = await uploadBytes(imgRef, req.file.buffer);
+
+    restaurantImg = imgUpload.metadata.fullPath;
+  }
+
+  await restaurant.update({ name, address, restaurantImg });
 
   return res.status(201).json({
     status: 'success',
@@ -135,16 +147,16 @@ exports.updateReview = catchAsync(async (req, res, next) => {
 
   const ratingRestaurant = ((review.rating + restaurant.rating) / 2).toFixed(1);
 
-  const updateRestaurant = restaurant.update({
+  const updateRestaurantPromise = restaurant.update({
     rating: ratingRestaurant,
   });
 
-  const updateReview = review.update({
+  const updateReviewPromise = review.update({
     comment,
     rating,
   });
 
-  await Promise.all([updateRestaurant, updateReview]);
+  await Promise.all([updateRestaurantPromise, updateReviewPromise]);
 
   return res.status(200).json({
     status: 'success',
