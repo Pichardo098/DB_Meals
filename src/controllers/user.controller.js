@@ -1,13 +1,14 @@
-const { User, userStatus } = require('../models/user.model');
-const { Order, orderStatus } = require('../models/order.model');
-const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
 const { Meal, mealStatus } = require('../models/meal.model');
-const catchAsync = require('../utils/catchAsync');
-const bcrypt = require('bcryptjs');
-const generateJWT = require('../utils/jwt');
-const AppError = require('../utils/appError');
-const storage = require('../utils/firebase');
+const { MealImg, statusMealImg } = require('../models/mealImg.model');
+const { Order, orderStatus } = require('../models/order.model');
 const { ref, uploadBytes, getDownloadURL } = require('firebase/storage');
+const { Restaurant, restaurantStatus } = require('../models/restaurant.model');
+const { User, userStatus } = require('../models/user.model');
+const AppError = require('../utils/appError');
+const bcrypt = require('bcryptjs');
+const catchAsync = require('../utils/catchAsync');
+const generateJWT = require('../utils/jwt');
+const storage = require('../utils/firebase');
 
 exports.signupUser = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
@@ -147,21 +148,51 @@ exports.getAllOrdersUser = catchAsync(async (req, res, next) => {
       userId: sessionUser.id,
       status: orderStatus.active,
     },
+    attributes: {
+      exclude: ['status'],
+    },
     include: [
       {
         model: Meal,
         attributes: {
           exclude: ['status', 'userId'],
         },
+        where: {
+          status: mealStatus.active,
+        },
         include: [
           {
             model: Restaurant,
-            attributes: ['id', 'name', 'address'],
+            attributes: ['id', 'name', 'address', 'restaurantImg'],
+          },
+          {
+            model: MealImg,
           },
         ],
       },
     ],
   });
+
+  const ordersPromises = orders.map(async (order) => {
+    const mealImgsPromises = order.meal.mealImgs.map(async (meal) => {
+      const imgRef = ref(storage, meal.mealImgUrl);
+      const url = await getDownloadURL(imgRef);
+      meal.mealImgUrl = url;
+      return meal;
+    });
+
+    await Promise.all(mealImgsPromises);
+
+    const imgRef = ref(storage, order.meal.restaurant.restaurantImg);
+    const url = await getDownloadURL(imgRef);
+
+    order.meal.restaurant.restaurantImg = url;
+
+    return order;
+  });
+
+  await Promise.all(ordersPromises);
+
   return res.status(200).json({
     status: 'success',
     results: orders.length,
@@ -184,10 +215,18 @@ exports.getDetailOneOrder = catchAsync(async (req, res, next) => {
         attributes: {
           exclude: ['status', 'userId'],
         },
-        include: {
-          model: Restaurant,
-          attributes: ['id', 'name', 'address'],
+        where: {
+          status: mealStatus.active,
         },
+        include: [
+          {
+            model: Restaurant,
+            attributes: ['id', 'name', 'address', 'restaurantImg'],
+          },
+          {
+            model: MealImg,
+          },
+        ],
       },
     ],
   });
@@ -195,6 +234,25 @@ exports.getDetailOneOrder = catchAsync(async (req, res, next) => {
   if (!order) {
     return next(new AppError(`Order with id: ${id} not found`, 400));
   }
+
+  const mealImgsPromises = order.meal.mealImgs.map(async (mealImg) => {
+    const imgRef = ref(storage, mealImg.mealImgUrl);
+    const url = await getDownloadURL(imgRef);
+
+    mealImg.mealImgUrl = url;
+    return mealImg;
+  });
+
+  const imgRestRef = ref(storage, order.meal.restaurant.restaurantImg);
+  const imgUrlRestPromise = getDownloadURL(imgRestRef);
+
+  const [mealImgs, imgUrlRest] = await Promise.all([
+    ...mealImgsPromises,
+    imgUrlRestPromise,
+  ]);
+
+  order.meal.mealImgs = mealImgs;
+  order.meal.restaurant.restaurantImg = imgUrlRest;
 
   return res.status(200).json({
     status: 'success',
